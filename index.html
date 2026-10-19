@@ -276,6 +276,68 @@ body {
 }
 .dd-search:focus { outline: none; border-color: var(--focus); }
 
+/* Toggle "só com saldo" */
+.toggle-saldo {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 6px 12px; border-radius: 6px;
+  background: var(--card); color: var(--muted);
+  border: 1px solid var(--rule);
+  font: inherit; font-size: 12px; font-weight: 600;
+  cursor: pointer;
+}
+.toggle-saldo:hover { border-color: var(--warn); }
+.toggle-saldo.on {
+  background: var(--warn); color: #fff; border-color: var(--warn);
+}
+.toggle-saldo .ind {
+  display: inline-block; width: 10px; height: 10px; border-radius: 50%;
+  background: var(--rule); border: 1.5px solid var(--muted);
+  flex-shrink: 0;
+}
+.toggle-saldo.on .ind {
+  background: #fff; border-color: #fff;
+}
+
+/* Chips de filtros ativos (SKU clicado) */
+.active-chips {
+  display: flex; gap: 6px; flex-wrap: wrap;
+  margin-bottom: 10px; align-items: center;
+}
+.active-chips .ac-lbl {
+  font-size: 10px; text-transform: uppercase; letter-spacing: .09em;
+  color: var(--muted); font-weight: 700;
+  margin-right: 4px;
+}
+.active-chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 4px 4px 4px 10px; border-radius: 999px;
+  background: var(--mdbred); color: #fff;
+  font-size: 11.5px; font-weight: 600;
+  max-width: 320px;
+}
+.active-chip .txt {
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.active-chip button {
+  background: rgba(255,255,255,.2); color: #fff;
+  border: 0; border-radius: 50%; width: 18px; height: 18px;
+  cursor: pointer; font-size: 12px; line-height: 1;
+  display: inline-flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.active-chip button:hover { background: rgba(255,255,255,.35); }
+
+/* SKU clicável nas tabelas */
+.sku-link {
+  cursor: pointer; user-select: none;
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--accent) 40%, transparent);
+  text-underline-offset: 2px;
+  transition: color 100ms;
+}
+.sku-link:hover { color: var(--mdbred); text-decoration-color: var(--mdbred); }
+.sku-link.filtered { color: var(--mdbred); font-weight: 800; }
+
 /* ============ LAYOUT GRID — 2 colunas (Lojas + SKUs) ============ */
 .grid {
   display: grid;
@@ -614,9 +676,13 @@ tfoot td.num { text-align: right; font-variant-numeric: tabular-nums; }
 <!-- Filters -->
 <div class="filters-wrap" id="filters">
   <div class="filters-lbl">Filtros</div>
-  <div id="dd-row" style="display:flex; flex-wrap:wrap; gap:8px; min-width:0;"></div>
+  <div id="dd-row" style="display:flex; flex-wrap:wrap; gap:8px; min-width:0; align-items:center;">
+    <!-- dropdowns + toggle "só com saldo" vão aqui -->
+  </div>
   <button type="button" class="chip clear" id="clear-all">Limpar filtros</button>
 </div>
+<!-- Chip row — mostra SKU ativo e outros filtros rápidos removíveis -->
+<div id="active-chips" class="active-chips" hidden></div>
 
 <!-- KPI strip horizontal -->
 <div class="kpi-strip">
@@ -773,6 +839,7 @@ const state = {
   pedDate: null,           // data única selecionada para a seção Pedidos
   pedMode: 'com',          // 'com' = só com pedido · 'todos' = inclui sem pedido
   sortPed: {k:'val', dir:-1},
+  onlySaldo: false,        // filtro: só linhas com saldo > 0
 };
 
 // Try restore from localStorage
@@ -786,13 +853,14 @@ try {
     }
     if (o.pedDate) state.pedDate = o.pedDate;
     if (o.pedMode) state.pedMode = o.pedMode;
+    if (o.onlySaldo) state.onlySaldo = true;
     if (o.theme) document.documentElement.setAttribute('data-theme', o.theme);
   }
 } catch(_){}
 
 function persist() {
   try {
-    const o = { unit: state.unit, filters: {}, pedDate: state.pedDate, pedMode: state.pedMode };
+    const o = { unit: state.unit, filters: {}, pedDate: state.pedDate, pedMode: state.pedMode, onlySaldo: state.onlySaldo };
     for (const [k, v] of Object.entries(state.filters)) o.filters[k] = [...v];
     const th = document.documentElement.getAttribute('data-theme');
     if (th) o.theme = th;
@@ -863,7 +931,8 @@ const lojasForChips = Object.entries(lojaRowCount)
 function filteredRows() {
   const f = state.filters;
   const fe = f.emis.size, fs = f.sit.size, fu = f.uf.size, fl = f.loja.size, fsk = f.sku.size, fo = f.op.size;
-  if (!fe && !fs && !fu && !fl && !fsk && !fo) return DATA.rows;
+  const onlySaldo = state.onlySaldo;
+  if (!fe && !fs && !fu && !fl && !fsk && !fo && !onlySaldo) return DATA.rows;
   return DATA.rows.filter(r => {
     if (fe && !f.emis.has(r[col.emis])) return false;
     if (fs && !f.sit.has(r[col.sit])) return false;
@@ -871,6 +940,7 @@ function filteredRows() {
     if (fl && !f.loja.has(r[col.cliente])) return false;
     if (fsk && !f.sku.has(r[col.sku])) return false;
     if (fo && !f.op.has(r[col.op])) return false;
+    if (onlySaldo && !(r[col.val_sd] > 0)) return false;
     return true;
   });
 }
@@ -1028,6 +1098,20 @@ function buildDropdowns() {
     row.appendChild(dd);
   }
 
+  // Botão "Só com saldo" ao final da linha de filtros
+  const toggleSaldo = document.createElement('button');
+  toggleSaldo.type = 'button';
+  toggleSaldo.id = 'toggle-saldo';
+  toggleSaldo.className = 'toggle-saldo' + (state.onlySaldo ? ' on' : '');
+  toggleSaldo.innerHTML = `<span class="ind"></span>Só com saldo`;
+  toggleSaldo.addEventListener('click', () => {
+    state.onlySaldo = !state.onlySaldo;
+    toggleSaldo.classList.toggle('on', state.onlySaldo);
+    persist();
+    render();
+  });
+  row.appendChild(toggleSaldo);
+
   // Click outside closes
   document.addEventListener('click', (e) => {
     if (!e.target.closest('.dd')) {
@@ -1162,6 +1246,7 @@ function render() {
   renderSkus(agg);
   renderCoverage(agg, rows);
   renderPedidos();
+  renderActiveChips();
 
   // Hint de unidade na faixa de Totais
   document.getElementById('kpi-unit-hint').textContent = uLbl;
@@ -1266,9 +1351,10 @@ function renderSkus(agg) {
     for (const x of list) {
       const barPct = Math.max(0, Math.min(100, (x.sd/maxSd)*100));
       const tr = document.createElement('tr');
+      const isFiltered = state.filters.sku.has(x.sku);
       tr.innerHTML = `
-        <td class="sku-code">${x.sku}</td>
-        <td>${escapeHtml(x.desc)}</td>
+        <td class="sku-code"><span class="sku-link ${isFiltered ? 'filtered' : ''}" data-sku="${x.sku}" title="Clique para filtrar por este SKU">${x.sku}</span></td>
+        <td><span class="sku-link ${isFiltered ? 'filtered' : ''}" data-sku="${x.sku}" title="Clique para filtrar por este SKU">${escapeHtml(x.desc)}</span></td>
         <td class="num" title="${fmt.br0.format(x.sol)}">${fmt.brK(x.sol)}</td>
         <td class="num" title="${fmt.br0.format(x.at)}">${fmt.brK(x.at)}</td>
         <td class="num saldo-cell" title="${fmt.br0.format(x.sd)}"><span class="saldo-bar" style="width:${barPct}%"></span><span>${fmt.brK(x.sd)}</span></td>
@@ -1276,6 +1362,10 @@ function renderSkus(agg) {
       `;
       tbody.appendChild(tr);
     }
+    // Click handlers
+    tbody.querySelectorAll('.sku-link').forEach(el => {
+      el.addEventListener('click', () => toggleSkuFilter(Number(el.dataset.sku)));
+    });
   }
 
   const tot = list.reduce((a,x) => ({sol:a.sol+x.sol, at:a.at+x.at, sd:a.sd+x.sd}), {sol:0,at:0,sd:0});
@@ -1502,9 +1592,10 @@ function renderPedidos() {
   for (const x of list) {
     const tr = document.createElement('tr');
     const statusCls = x.status === 'COM PEDIDO' ? 'com' : 'sem';
+    const isFiltered = state.filters.sku.has(x.sku);
     tr.innerHTML = `
-      <td class="sku-code">${x.sku}</td>
-      <td>${escapeHtml(x.desc)}</td>
+      <td class="sku-code"><span class="sku-link ${isFiltered ? 'filtered' : ''}" data-sku="${x.sku}" title="Clique para filtrar por este SKU">${x.sku}</span></td>
+      <td><span class="sku-link ${isFiltered ? 'filtered' : ''}" data-sku="${x.sku}" title="Clique para filtrar por este SKU">${escapeHtml(x.desc)}</span></td>
       <td><span class="status ${statusCls}">${x.status}</span></td>
       <td class="num">${x.qsol ? fmt.br0.format(x.qsol) : '—'}</td>
       <td class="num">${x.val ? fmt.br0.format(x.val) : '—'}</td>
@@ -1513,6 +1604,9 @@ function renderPedidos() {
     `;
     tbody.appendChild(tr);
   }
+  tbody.querySelectorAll('.sku-link').forEach(el => {
+    el.addEventListener('click', () => toggleSkuFilter(Number(el.dataset.sku)));
+  });
 
   // Totals
   const tot = list.reduce((a,x) => ({qsol:a.qsol+x.qsol, val:a.val+x.val, qat:a.qat+x.qat, peds:a.peds+x.peds}),
@@ -1538,6 +1632,46 @@ function renderPedidos() {
   });
 }
 
+// ============ TOGGLE SKU FILTER (clique no SKU) ============
+function toggleSkuFilter(sku) {
+  const s = state.filters.sku;
+  if (s.has(sku)) s.delete(sku);
+  else s.add(sku);
+  persist();
+  render();
+}
+
+function renderActiveChips() {
+  const wrap = document.getElementById('active-chips');
+  const skus = [...state.filters.sku];
+  if (skus.length === 0 && !state.onlySaldo) {
+    wrap.hidden = true;
+    wrap.innerHTML = '';
+    return;
+  }
+  wrap.hidden = false;
+  const parts = ['<span class="ac-lbl">Filtros ativos:</span>'];
+  for (const sku of skus) {
+    const desc = DATA.skus_cadastro[sku] || '(sem cadastro)';
+    parts.push(`<span class="active-chip"><span class="txt">SKU ${sku} · ${escapeHtml(desc)}</span><button type="button" data-sku="${sku}" aria-label="Remover filtro">×</button></span>`);
+  }
+  if (state.onlySaldo) {
+    parts.push(`<span class="active-chip" style="background:var(--warn)"><span class="txt">Só com saldo</span><button type="button" data-saldo="1" aria-label="Remover filtro">×</button></span>`);
+  }
+  wrap.innerHTML = parts.join('');
+  wrap.querySelectorAll('button[data-sku]').forEach(b => {
+    b.addEventListener('click', () => toggleSkuFilter(Number(b.dataset.sku)));
+  });
+  wrap.querySelectorAll('button[data-saldo]').forEach(b => {
+    b.addEventListener('click', () => {
+      state.onlySaldo = false;
+      document.getElementById('toggle-saldo')?.classList.remove('on');
+      persist();
+      render();
+    });
+  });
+}
+
 // ============ UTIL ============
 function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -1555,7 +1689,9 @@ document.querySelectorAll('.unit-toggle button').forEach(b => {
 document.getElementById('clear-all').addEventListener('click', () => {
   for (const k of Object.keys(state.filters)) state.filters[k].clear();
   state.skuSearch = '';
+  state.onlySaldo = false;
   document.getElementById('sku-search').value = '';
+  document.getElementById('toggle-saldo')?.classList.remove('on');
   persist();
   render();
 });
