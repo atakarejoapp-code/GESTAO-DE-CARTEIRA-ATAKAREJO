@@ -276,21 +276,75 @@ body {
 }
 .dd-search:focus { outline: none; border-color: var(--focus); }
 
-/* ============ LAYOUT GRID ============ */
+/* ============ LAYOUT GRID — 2 colunas (Lojas + SKUs) ============ */
 .grid {
   display: grid;
-  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1.4fr) minmax(0, 0.7fr);
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 10px;
   margin-bottom: 10px;
 }
-@media (max-width: 1100px) {
-  .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
-  .side { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
-}
 @media (max-width: 820px) {
   .grid { grid-template-columns: 1fr; }
-  .side { grid-template-columns: 1fr; }
 }
+
+/* ============ KPI STRIP HORIZONTAL (acima das tabelas) — 2 blocos ============ */
+.kpi-strip {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr);
+  gap: 10px;
+  margin-bottom: 10px;
+}
+@media (max-width: 820px) {
+  .kpi-strip { grid-template-columns: 1fr; }
+}
+/* ============ COVER STRIP (abaixo das tabelas, antes de Pedidos por Data) ============ */
+.cover-strip {
+  background: var(--card); border: 1px solid var(--rule);
+  border-radius: 8px; padding: 10px 12px;
+  margin-bottom: 10px;
+}
+.kpi-box {
+  background: var(--card); border: 1px solid var(--rule);
+  border-radius: 8px; padding: 10px 12px;
+  display: flex; flex-direction: column; min-width: 0;
+}
+.kpi-box-title {
+  font-size: 9.5px; text-transform: uppercase; letter-spacing: .09em;
+  color: var(--muted); font-weight: 700;
+  margin-bottom: 8px; display: flex; justify-content: space-between; align-items: baseline;
+}
+.kpi-box-title .hint {
+  font-size: 9px; color: var(--muted); font-weight: 500; letter-spacing: .02em; text-transform: none;
+}
+.kpi-row-h {
+  display: grid; gap: 6px; flex: 1;
+}
+.kpi-row-saude    { grid-template-columns: 1fr 1fr 1fr; }
+.kpi-row-totais   { grid-template-columns: 1fr 1fr 1fr 1fr; }
+.kpi-row-cobertura{ grid-template-columns: 1fr 1fr 1fr 1fr; }
+
+.kpi-h {
+  text-align: center; padding: 6px 4px;
+  border-radius: 5px; background: var(--rule-soft);
+  min-width: 0;
+}
+.kpi-h.good { background: var(--good-soft); }
+.kpi-h.bad  { background: var(--bad-soft); }
+.kpi-h.warn { background: var(--warn-soft); }
+.kpi-h.accent { background: color-mix(in srgb, var(--accent) 10%, var(--rule-soft)); }
+.kpi-h .lbl {
+  font-size: 9px; text-transform: uppercase; letter-spacing: .07em;
+  color: var(--muted); font-weight: 700; line-height: 1.1;
+}
+.kpi-h .val {
+  font-size: 15px; font-weight: 700; line-height: 1.15; margin-top: 2px;
+  letter-spacing: -.01em;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.kpi-h.good .val { color: var(--good); }
+.kpi-h.bad .val  { color: var(--bad); }
+.kpi-h.warn .val { color: var(--warn); }
+.kpi-h.accent .val { color: var(--accent); }
 
 /* ============ PANEL ============ */
 .panel {
@@ -564,7 +618,30 @@ tfoot td.num { text-align: right; font-variant-numeric: tabular-nums; }
   <button type="button" class="chip clear" id="clear-all">Limpar filtros</button>
 </div>
 
-<!-- Grid -->
+<!-- KPI strip horizontal -->
+<div class="kpi-strip">
+  <!-- Saúde -->
+  <div class="kpi-box">
+    <div class="kpi-box-title">Indicadores de Saúde <span class="hint">% sobre solicitado</span></div>
+    <div class="kpi-row-h kpi-row-saude">
+      <div class="kpi-h good"><div class="lbl">% Atend</div><div class="val" id="kpi-at">—</div></div>
+      <div class="kpi-h bad"><div class="lbl">% Canc</div><div class="val" id="kpi-cn">—</div></div>
+      <div class="kpi-h warn"><div class="lbl">% Saldo</div><div class="val" id="kpi-sd">—</div></div>
+    </div>
+  </div>
+  <!-- Totais -->
+  <div class="kpi-box">
+    <div class="kpi-box-title">Totais da Rede <span class="hint" id="kpi-unit-hint">R$</span></div>
+    <div class="kpi-row-h kpi-row-totais">
+      <div class="kpi-h accent"><div class="lbl">Solicitado</div><div class="val" id="tot-sol">—</div></div>
+      <div class="kpi-h good"><div class="lbl">Atendido</div><div class="val" id="tot-at">—</div></div>
+      <div class="kpi-h bad"><div class="lbl">Cancelado</div><div class="val" id="tot-cn">—</div></div>
+      <div class="kpi-h warn"><div class="lbl">Saldo</div><div class="val" id="tot-sd">—</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- Grid 2 colunas: Lojas | SKUs -->
 <div class="grid">
   <!-- Pivot: Lojas -->
   <section class="panel" id="panel-lojas">
@@ -617,57 +694,17 @@ tfoot td.num { text-align: right; font-variant-numeric: tabular-nums; }
     </div>
   </section>
 
-  <!-- Side column -->
-  <aside class="side">
-    <!-- KPIs -->
-    <section class="panel">
-      <div class="panel-h">
-        <h2>Indicadores de Saúde</h2>
-        <div class="cnt">sobre solicitado</div>
-      </div>
-      <div class="kpi-grid">
-        <div class="kpi good"><div class="lbl">% Atend</div><div class="val" id="kpi-at">—</div></div>
-        <div class="kpi bad"><div class="lbl">% Canc</div><div class="val" id="kpi-cn">—</div></div>
-        <div class="kpi warn"><div class="lbl">% Saldo</div><div class="val" id="kpi-sd">—</div></div>
-      </div>
-      <div class="totals-strip">
-        <div class="lbl">Solicitado</div><div class="val" id="tot-sol">—</div>
-        <div class="lbl">Atendido</div>  <div class="val" id="tot-at">—</div>
-        <div class="lbl">Cancelado</div> <div class="val" id="tot-cn">—</div>
-        <div class="lbl">Saldo</div>     <div class="val" id="tot-sd">—</div>
-      </div>
-    </section>
+</div>
 
-    <!-- Chart -->
-    <section class="panel">
-      <div class="panel-h">
-        <h2>Pedidos por Data de Emissão</h2>
-        <div class="cnt" id="chart-cnt">—</div>
-      </div>
-      <div class="chart-wrap">
-        <svg id="chart" viewBox="0 0 400 180" aria-label="Gráfico de pedidos por data"></svg>
-        <div class="chart-legend">
-          <span><i style="background:var(--ink-2)"></i>Solicitado</span>
-          <span><i style="background:var(--good)"></i>Atendido</span>
-          <span><i style="background:var(--warn)"></i>Saldo</span>
-        </div>
-      </div>
-    </section>
-
-    <!-- Coverage: Solic x Itens Cadastrados -->
-    <section class="panel">
-      <div class="panel-h">
-        <h2>Solic × Itens Cadastrados</h2>
-        <div class="cnt">universo filtrado</div>
-      </div>
-      <div class="cover-grid">
-        <div class="cover-tile"><div class="lbl">SKUs Cadastrados</div><div class="val" id="cov-tot">—</div></div>
-        <div class="cover-tile good"><div class="lbl">Com Pedido</div><div class="val" id="cov-com">—</div></div>
-        <div class="cover-tile bad"><div class="lbl">Sem Pedido</div><div class="val" id="cov-sem">—</div></div>
-        <div class="cover-tile warn"><div class="lbl">% Cobertura</div><div class="val" id="cov-pct">—</div></div>
-      </div>
-    </section>
-  </aside>
+<!-- Cobertura: Solic x Itens Cadastrados -->
+<div class="cover-strip">
+  <div class="kpi-box-title">Solic × Itens Cadastrados <span class="hint">universo filtrado</span></div>
+  <div class="kpi-row-h kpi-row-cobertura">
+    <div class="kpi-h"><div class="lbl">Cadastrados</div><div class="val" id="cov-tot">—</div></div>
+    <div class="kpi-h good"><div class="lbl">Com Pedido</div><div class="val" id="cov-com">—</div></div>
+    <div class="kpi-h bad"><div class="lbl">Sem Pedido</div><div class="val" id="cov-sem">—</div></div>
+    <div class="kpi-h warn"><div class="lbl">% Cobertura</div><div class="val" id="cov-pct">—</div></div>
+  </div>
 </div>
 
 <!-- Pedidos por Data (visão dedicada) -->
@@ -949,12 +986,20 @@ function buildDropdowns() {
     }
 
     if (searchInp) {
-      searchInp.addEventListener('input', () => {
+      const doSearch = () => {
         const q = searchInp.value.toLowerCase().trim();
         optsWrap.querySelectorAll('.dd-opt').forEach(o => {
-          o.hidden = q && !o.dataset.lbl.includes(q);
+          // Só aplica se não estiver escondido por "sem dados"
+          if (o.dataset.nodata === '1') { o.style.display = 'none'; return; }
+          const match = !q || (o.dataset.lbl || '').includes(q);
+          o.style.display = match ? '' : 'none';
         });
-      });
+      };
+      searchInp.addEventListener('input', doSearch);
+      searchInp.addEventListener('keyup', doSearch);
+      searchInp.addEventListener('click', (e) => e.stopPropagation());
+      // Rearmar busca ao abrir painel (sync depois de updateDropdowns)
+      dd._reapplySearch = doSearch;
     }
 
     // Footer: todos / nenhum
@@ -991,6 +1036,32 @@ function buildDropdowns() {
   });
 }
 
+// Mapa de dropdown key -> coluna real da tabela
+const ddKeyToCol = {
+  emis: 'emis', sit: 'sit', uf: 'uf', op: 'op', loja: 'cliente', sku: 'sku',
+};
+
+// Para cada dropdown, computar o conjunto de valores que AINDA aparecem
+// aplicando os filtros das OUTRAS dimensões.
+function computeAvailable(excludeKey) {
+  const f = state.filters;
+  const avail = {};
+  for (const k of Object.keys(ddKeyToCol)) avail[k] = new Set();
+  rowLoop:
+  for (const r of DATA.rows) {
+    // Aplica filtros exceto o da dimensão `excludeKey`
+    for (const [k, colKey] of Object.entries(ddKeyToCol)) {
+      if (k === excludeKey) continue;
+      const s = f[k];
+      if (s && s.size && !s.has(r[col[colKey]])) continue rowLoop;
+    }
+    for (const [k, colKey] of Object.entries(ddKeyToCol)) {
+      avail[k].add(r[col[colKey]]);
+    }
+  }
+  return avail;
+}
+
 function updateDropdowns() {
   for (const dd of document.querySelectorAll('.dd')) {
     const key = dd.dataset.key;
@@ -1005,7 +1076,7 @@ function updateDropdowns() {
       let txt;
       if (key === 'emis') txt = fmt.date(v);
       else if (key === 'loja') txt = (DATA.lojas[v]?.nome || v).slice(0, 20);
-      else if (key === 'op') txt = v;  // "ZBON" / "ZVMI"
+      else if (key === 'op') txt = v;
       else txt = v;
       valEl.textContent = txt;
       btn.classList.add('active');
@@ -1013,11 +1084,30 @@ function updateDropdowns() {
       valEl.textContent = `${s.size} selecionados`;
       btn.classList.add('active');
     }
-    // Sync checkboxes
-    dd.querySelectorAll('.dd-opt input').forEach(cb => {
-      const v = cb.dataset.v;
+
+    // Computa valores disponíveis excluindo o filtro desta dimensão
+    const avail = computeAvailable(key)[key];
+
+    // Sync checkboxes + hide items sem dados
+    dd.querySelectorAll('.dd-opt').forEach(opt => {
+      const cb = opt.querySelector('input');
+      if (!cb) return;
+      const raw = cb.dataset.v;
+      // Converte para o tipo correto para comparar (SKU é número, resto é string)
+      const v = (key === 'sku') ? Number(raw) : raw;
       cb.checked = s.has(v);
+      const hasData = avail.has(v);
+      opt.dataset.nodata = hasData ? '0' : '1';
+      // Se SELECIONADO, sempre mostra (mesmo sem dados); se não, esconde quando não tem dados
+      if (!hasData && !cb.checked) {
+        opt.style.display = 'none';
+      } else {
+        opt.style.display = '';
+      }
     });
+
+    // Reaplica busca se existir
+    if (dd._reapplySearch) dd._reapplySearch();
   }
 }
 
@@ -1058,16 +1148,23 @@ function render() {
   document.getElementById('kpi-cn').textContent = (pctCn*100).toFixed(2) + '%';
   document.getElementById('kpi-sd').textContent = (pctSd*100).toFixed(1) + '%';
 
-  document.getElementById('tot-sol').textContent = fmtVal(agg.sol, u);
-  document.getElementById('tot-at').textContent  = fmtVal(agg.at, u);
-  document.getElementById('tot-cn').textContent  = fmtVal(agg.cn, u);
-  document.getElementById('tot-sd').textContent  = fmtVal(agg.sd, u);
+  // Totais em formato K/mi para caber nos cards estreitos; tooltip tem valor completo
+  const totSolEl = document.getElementById('tot-sol');
+  const totAtEl  = document.getElementById('tot-at');
+  const totCnEl  = document.getElementById('tot-cn');
+  const totSdEl  = document.getElementById('tot-sd');
+  totSolEl.textContent = fmt.brK(agg.sol); totSolEl.title = fmtVal(agg.sol, u);
+  totAtEl.textContent  = fmt.brK(agg.at);  totAtEl.title  = fmtVal(agg.at, u);
+  totCnEl.textContent  = fmt.brK(agg.cn);  totCnEl.title  = fmtVal(agg.cn, u);
+  totSdEl.textContent  = fmt.brK(agg.sd);  totSdEl.title  = fmtVal(agg.sd, u);
 
   renderLojas(agg);
   renderSkus(agg);
-  renderChart(agg);
   renderCoverage(agg, rows);
   renderPedidos();
+
+  // Hint de unidade na faixa de Totais
+  document.getElementById('kpi-unit-hint').textContent = uLbl;
 }
 
 // ============ RENDER LOJAS ============
