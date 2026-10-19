@@ -234,17 +234,24 @@ body {
   letter-spacing: .04em; cursor: pointer; padding: 2px 4px;
 }
 .dd-panel .dd-footer button:hover { color: var(--mdbred); }
+.dd-search {
+  width: 100%; padding: 5px 8px; margin-bottom: 4px;
+  background: var(--rule-soft); border: 1px solid var(--rule);
+  border-radius: 4px; font: inherit; font-size: 11.5px;
+  color: var(--ink); box-sizing: border-box;
+}
+.dd-search:focus { outline: none; border-color: var(--focus); }
 
 /* ============ LAYOUT GRID ============ */
 .grid {
   display: grid;
-  grid-template-columns: minmax(0, 1.3fr) minmax(0, 1.3fr) minmax(0, 1fr);
-  gap: 12px;
-  margin-bottom: 12px;
+  grid-template-columns: minmax(0, 1.25fr) minmax(0, 1.25fr) minmax(0, 0.95fr);
+  gap: 10px;
+  margin-bottom: 10px;
 }
 @media (max-width: 1100px) {
   .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
-  .side { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+  .side { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
 }
 @media (max-width: 820px) {
   .grid { grid-template-columns: 1fr; }
@@ -274,13 +281,13 @@ body {
 .panel-h .cnt b { color: var(--ink); font-weight: 600; }
 .panel-body { overflow: auto; max-height: 560px; min-height: 200px; }
 
-/* ============ TABLE ============ */
-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+/* ============ TABLE — compacta ============ */
+table { width: 100%; border-collapse: collapse; font-size: 11.5px; table-layout: auto; }
 thead th {
   position: sticky; top: 0; z-index: 1;
   background: var(--card);
-  text-align: left; padding: 8px 10px;
-  font-size: 10px; text-transform: uppercase; letter-spacing: .08em;
+  text-align: left; padding: 6px 6px;
+  font-size: 9.5px; text-transform: uppercase; letter-spacing: .06em;
   color: var(--muted); font-weight: 700;
   border-bottom: 1.5px solid var(--rule);
   cursor: pointer; user-select: none;
@@ -288,19 +295,19 @@ thead th {
 }
 thead th.num { text-align: right; }
 thead th:hover { color: var(--ink); }
-thead th .sort { opacity: .3; margin-left: 3px; }
+thead th .sort { opacity: .3; margin-left: 2px; }
 thead th.sort-asc .sort, thead th.sort-desc .sort { opacity: 1; color: var(--mdbred); }
 tbody td {
-  padding: 7px 10px; border-bottom: 1px solid var(--rule-soft);
+  padding: 5px 6px; border-bottom: 1px solid var(--rule-soft);
   white-space: nowrap;
 }
 tbody td.num { text-align: right; font-variant-numeric: tabular-nums; }
 tbody tr:last-child td { border-bottom: none; }
 tbody tr:hover td { background: var(--rule-soft); }
 tfoot td {
-  padding: 9px 10px; background: var(--rule-soft);
+  padding: 7px 6px; background: var(--rule-soft);
   border-top: 1.5px solid var(--rule); border-bottom: none;
-  font-weight: 700; font-size: 12px;
+  font-weight: 700; font-size: 11.5px;
   position: sticky; bottom: 0;
 }
 tfoot td.num { text-align: right; font-variant-numeric: tabular-nums; }
@@ -340,22 +347,22 @@ tfoot td.num { text-align: right; font-variant-numeric: tabular-nums; }
 @media (max-width: 1100px) { .side { display: grid; grid-template-columns: 1fr 1fr 1fr; } }
 @media (max-width: 820px)  { .side { display: flex; } }
 
-/* KPIs */
-.kpi-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; padding: 12px; }
+/* KPIs — compactos */
+.kpi-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; padding: 8px 10px; }
 .kpi {
-  text-align: center; padding: 10px 6px;
-  border-radius: 6px; background: var(--rule-soft);
+  text-align: center; padding: 6px 4px;
+  border-radius: 4px; background: var(--rule-soft);
   position: relative; overflow: hidden;
 }
 .kpi.good { background: var(--good-soft); }
 .kpi.bad  { background: var(--bad-soft); }
 .kpi.warn { background: var(--warn-soft); }
 .kpi .lbl {
-  font-size: 9.5px; text-transform: uppercase; letter-spacing: .09em;
+  font-size: 8.5px; text-transform: uppercase; letter-spacing: .08em;
   color: var(--muted); font-weight: 700;
 }
 .kpi .val {
-  font-size: 18px; font-weight: 700; line-height: 1.2; margin-top: 4px;
+  font-size: 13px; font-weight: 700; line-height: 1.1; margin-top: 2px;
   letter-spacing: -.01em;
 }
 .kpi.good .val { color: var(--good); }
@@ -441,18 +448,16 @@ tfoot td.num { text-align: right; font-variant-numeric: tabular-nums; }
   font-size: 10px; text-transform: uppercase; letter-spacing: .09em;
   color: var(--muted); font-weight: 700;
 }
-.ped-date-chips { display: flex; gap: 6px; flex-wrap: wrap; }
-.ped-date-chip {
+.ped-date-select {
   padding: 6px 12px; border-radius: 6px;
-  background: var(--chip); color: var(--chip-ink);
-  border: 1px solid transparent;
-  font-size: 12px; font-weight: 700; cursor: pointer;
+  background: var(--card); color: var(--ink);
+  border: 1px solid var(--rule);
+  font: inherit; font-size: 12px; font-weight: 600;
+  cursor: pointer; min-width: 220px;
   font-variant-numeric: tabular-nums;
 }
-.ped-date-chip:hover { background: color-mix(in srgb, var(--chip) 50%, var(--card)); }
-.ped-date-chip.on {
-  background: var(--mdbred); color: #fff;
-}
+.ped-date-select:focus { outline: none; border-color: var(--focus); }
+.ped-date-select.active { border-color: var(--mdbred); color: var(--mdbred); font-weight: 700; }
 .ped-mode-toggle {
   display: inline-flex; background: var(--rule-soft); border: 1px solid var(--rule);
   border-radius: 6px; padding: 2px; gap: 2px;
@@ -534,7 +539,6 @@ tfoot td.num { text-align: right; font-variant-numeric: tabular-nums; }
           <tr>
             <th data-key="nome">Loja <span class="sort">↕</span></th>
             <th data-key="uf">UF <span class="sort">↕</span></th>
-            <th class="num" data-key="peds">Ped. <span class="sort">↕</span></th>
             <th class="num" data-key="sol">Solic <span class="sort">↕</span></th>
             <th class="num" data-key="at">Atend <span class="sort">↕</span></th>
             <th class="num" data-key="sd">Saldo <span class="sort">↕</span></th>
@@ -635,7 +639,9 @@ tfoot td.num { text-align: right; font-variant-numeric: tabular-nums; }
   </div>
   <div class="ped-controls">
     <span class="label">Data</span>
-    <div class="ped-date-chips" id="ped-date-chips"></div>
+    <select id="ped-date-select" class="ped-date-select" aria-label="Data de emissão">
+      <option value="">— Selecione uma data —</option>
+    </select>
     <span style="flex:1"></span>
     <span class="label">Exibir</span>
     <div class="ped-mode-toggle" role="group" aria-label="Modo de exibição">
@@ -686,6 +692,7 @@ const state = {
     uf:   new Set(),
     loja: new Set(),      // CNPJ
     sku:  new Set(),      // SKU code
+    op:   new Set(),      // ZBON / ZVMI
   },
   pedDate: null,           // data única selecionada para a seção Pedidos
   pedMode: 'com',          // 'com' = só com pedido · 'todos' = inclui sem pedido
@@ -756,6 +763,14 @@ const unitCols = {
 const uniqueDates = [...new Set(DATA.rows.map(r => r[col.emis]))].sort();
 const uniqueSits  = [...new Set(DATA.rows.map(r => r[col.sit]))].sort();
 const uniqueUFs   = [...new Set(DATA.rows.map(r => r[col.uf]))].sort();
+const uniqueOps   = [...new Set(DATA.rows.map(r => r[col.op]))].sort();
+// Lojas: CNPJ -> nome
+const uniqueLojas = [...new Set(DATA.rows.map(r => r[col.cliente]))].sort((a,b) => {
+  const na = (DATA.lojas[a]?.nome || a);
+  const nb = (DATA.lojas[b]?.nome || b);
+  return na.localeCompare(nb);
+});
+const opLabels = { 'ZBON': 'ZBON — Bonificação', 'ZVMI': 'ZVMI — Venda' };
 
 // Loja CNPJ -> count of rows (for filter chip)
 const lojaRowCount = {};
@@ -771,14 +786,15 @@ const lojasForChips = Object.entries(lojaRowCount)
 // ============ FILTERING ============
 function filteredRows() {
   const f = state.filters;
-  const fe = f.emis.size, fs = f.sit.size, fu = f.uf.size, fl = f.loja.size, fsk = f.sku.size;
-  if (!fe && !fs && !fu && !fl && !fsk) return DATA.rows;
+  const fe = f.emis.size, fs = f.sit.size, fu = f.uf.size, fl = f.loja.size, fsk = f.sku.size, fo = f.op.size;
+  if (!fe && !fs && !fu && !fl && !fsk && !fo) return DATA.rows;
   return DATA.rows.filter(r => {
     if (fe && !f.emis.has(r[col.emis])) return false;
     if (fs && !f.sit.has(r[col.sit])) return false;
     if (fu && !f.uf.has(r[col.uf])) return false;
     if (fl && !f.loja.has(r[col.cliente])) return false;
     if (fsk && !f.sku.has(r[col.sku])) return false;
+    if (fo && !f.op.has(r[col.op])) return false;
     return true;
   });
 }
@@ -835,11 +851,15 @@ function buildDropdowns() {
   const dateCount = counts('emis');
   const sitCount  = counts('sit');
   const ufCount   = counts('uf');
+  const opCount   = counts('op');
+  const lojaCount = counts('cliente');
 
   const defs = [
     {key:'emis', label:'Data', items: uniqueDates.map(d => ({v:d, label:fmt.date(d), n:dateCount.get(d)}))},
     {key:'sit',  label:'Status', items: uniqueSits.map(s => ({v:s, label:s, n:sitCount.get(s)}))},
     {key:'uf',   label:'UF', items: uniqueUFs.map(u => ({v:u, label:u, n:ufCount.get(u)}))},
+    {key:'op',   label:'Operação', items: uniqueOps.map(o => ({v:o, label: opLabels[o] || o, n:opCount.get(o)}))},
+    {key:'loja', label:'Loja', items: uniqueLojas.map(c => ({v:c, label:(DATA.lojas[c]?.nome || c), n:lojaCount.get(c) || 0})), search:true},
   ];
 
   for (const def of defs) {
@@ -856,9 +876,23 @@ function buildDropdowns() {
     panel.className = 'dd-panel';
     panel.setAttribute('role', 'listbox');
 
+    // Search box (opcional)
+    let searchInp = null;
+    if (def.search) {
+      searchInp = document.createElement('input');
+      searchInp.type = 'search';
+      searchInp.className = 'dd-search';
+      searchInp.placeholder = `Buscar ${def.label.toLowerCase()}…`;
+      panel.appendChild(searchInp);
+    }
+
+    const optsWrap = document.createElement('div');
+    panel.appendChild(optsWrap);
+
     for (const it of def.items) {
       const opt = document.createElement('label');
       opt.className = 'dd-opt';
+      opt.dataset.lbl = (it.label || '').toLowerCase();
       opt.innerHTML = `
         <input type="checkbox" data-v="${escapeAttr(String(it.v))}">
         <span>${escapeHtml(it.label)}</span>
@@ -872,7 +906,16 @@ function buildDropdowns() {
         persist();
         render();
       });
-      panel.appendChild(opt);
+      optsWrap.appendChild(opt);
+    }
+
+    if (searchInp) {
+      searchInp.addEventListener('input', () => {
+        const q = searchInp.value.toLowerCase().trim();
+        optsWrap.querySelectorAll('.dd-opt').forEach(o => {
+          o.hidden = q && !o.dataset.lbl.includes(q);
+        });
+      });
     }
 
     // Footer: todos / nenhum
@@ -920,7 +963,12 @@ function updateDropdowns() {
       btn.classList.remove('active');
     } else if (s.size === 1) {
       const v = [...s][0];
-      valEl.textContent = key === 'emis' ? fmt.date(v) : v;
+      let txt;
+      if (key === 'emis') txt = fmt.date(v);
+      else if (key === 'loja') txt = (DATA.lojas[v]?.nome || v).slice(0, 20);
+      else if (key === 'op') txt = v;  // "ZBON" / "ZVMI"
+      else txt = v;
+      valEl.textContent = txt;
       btn.classList.add('active');
     } else {
       valEl.textContent = `${s.size} selecionados`;
@@ -929,7 +977,6 @@ function updateDropdowns() {
     // Sync checkboxes
     dd.querySelectorAll('.dd-opt input').forEach(cb => {
       const v = cb.dataset.v;
-      // Convert back if date (strings) ok; numbers for sku etc, but these are only text keys here
       cb.checked = s.has(v);
     });
   }
@@ -1022,10 +1069,9 @@ function renderLojas(agg) {
     tr.innerHTML = `
       <td><div>${escapeHtml(x.nome)}</div><div class="cnpj">${fmt.cnpj(x.cnpj)}</div></td>
       <td><span class="uf-pill">${x.uf}</span></td>
-      <td class="num">${x.peds}</td>
-      <td class="num">${fmt.br0.format(x.sol)}</td>
-      <td class="num">${fmt.br0.format(x.at)}</td>
-      <td class="num saldo-cell"><span class="saldo-bar" style="width:${barPct}%"></span><span>${fmt.br0.format(x.sd)}</span></td>
+      <td class="num" title="${fmt.br0.format(x.sol)}">${fmt.brK(x.sol)}</td>
+      <td class="num" title="${fmt.br0.format(x.at)}">${fmt.brK(x.at)}</td>
+      <td class="num saldo-cell" title="${fmt.br0.format(x.sd)}"><span class="saldo-bar" style="width:${barPct}%"></span><span>${fmt.brK(x.sd)}</span></td>
       <td class="num pct-cell"><span class="pct-bar"><span class="pct-fill" style="width:${(x.pct_at*100).toFixed(0)}%"></span></span><span class="pct-num">${(x.pct_at*100).toFixed(1)}%</span></td>
     `;
     tbody.appendChild(tr);
@@ -1034,11 +1080,10 @@ function renderLojas(agg) {
   // Totals
   const tot = list.reduce((a,x) => ({sol:a.sol+x.sol, at:a.at+x.at, sd:a.sd+x.sd, peds:a.peds+x.peds}), {sol:0,at:0,sd:0,peds:0});
   tfoot.innerHTML = `<tr>
-    <td colspan="2">Total — ${list.filter(x=>x.peds>0).length} lojas c/ pedido</td>
-    <td class="num">${tot.peds}</td>
-    <td class="num">${fmt.br0.format(tot.sol)}</td>
-    <td class="num">${fmt.br0.format(tot.at)}</td>
-    <td class="num">${fmt.br0.format(tot.sd)}</td>
+    <td colspan="2">Total — ${list.filter(x=>x.peds>0).length} lojas</td>
+    <td class="num" title="${fmt.br0.format(tot.sol)}">${fmt.brK(tot.sol)}</td>
+    <td class="num" title="${fmt.br0.format(tot.at)}">${fmt.brK(tot.at)}</td>
+    <td class="num" title="${fmt.br0.format(tot.sd)}">${fmt.brK(tot.sd)}</td>
     <td class="num">${tot.sol ? ((tot.at/tot.sol)*100).toFixed(1) : '0,0'}%</td>
   </tr>`;
 
@@ -1088,9 +1133,9 @@ function renderSkus(agg) {
       tr.innerHTML = `
         <td class="sku-code">${x.sku}</td>
         <td>${escapeHtml(x.desc)}</td>
-        <td class="num">${fmt.br0.format(x.sol)}</td>
-        <td class="num">${fmt.br0.format(x.at)}</td>
-        <td class="num saldo-cell"><span class="saldo-bar" style="width:${barPct}%"></span><span>${fmt.br0.format(x.sd)}</span></td>
+        <td class="num" title="${fmt.br0.format(x.sol)}">${fmt.brK(x.sol)}</td>
+        <td class="num" title="${fmt.br0.format(x.at)}">${fmt.brK(x.at)}</td>
+        <td class="num saldo-cell" title="${fmt.br0.format(x.sd)}"><span class="saldo-bar" style="width:${barPct}%"></span><span>${fmt.brK(x.sd)}</span></td>
         <td class="num pct-cell"><span class="pct-bar"><span class="pct-fill" style="width:${(x.pct_at*100).toFixed(0)}%"></span></span><span class="pct-num">${(x.pct_at*100).toFixed(1)}%</span></td>
       `;
       tbody.appendChild(tr);
@@ -1099,10 +1144,10 @@ function renderSkus(agg) {
 
   const tot = list.reduce((a,x) => ({sol:a.sol+x.sol, at:a.at+x.at, sd:a.sd+x.sd}), {sol:0,at:0,sd:0});
   tfoot.innerHTML = `<tr>
-    <td colspan="2">Total — ${list.length} SKUs c/ pedido</td>
-    <td class="num">${fmt.br0.format(tot.sol)}</td>
-    <td class="num">${fmt.br0.format(tot.at)}</td>
-    <td class="num">${fmt.br0.format(tot.sd)}</td>
+    <td colspan="2">Total — ${list.length} SKUs</td>
+    <td class="num" title="${fmt.br0.format(tot.sol)}">${fmt.brK(tot.sol)}</td>
+    <td class="num" title="${fmt.br0.format(tot.at)}">${fmt.brK(tot.at)}</td>
+    <td class="num" title="${fmt.br0.format(tot.sd)}">${fmt.brK(tot.sd)}</td>
     <td class="num">${tot.sol ? ((tot.at/tot.sol)*100).toFixed(1) : '0,0'}%</td>
   </tr>`;
 
@@ -1188,22 +1233,26 @@ function renderCoverage(agg, rows) {
 }
 
 // ============ RENDER PEDIDOS POR DATA ============
+let _pedSelectBuilt = false;
 function renderPedidos() {
-  // Date chips
-  const wrap = document.getElementById('ped-date-chips');
-  wrap.innerHTML = '';
-  for (const d of uniqueDates) {
-    const chip = document.createElement('button');
-    chip.type = 'button';
-    chip.className = 'ped-date-chip' + (state.pedDate === d ? ' on' : '');
-    chip.textContent = fmt.date(d);
-    chip.addEventListener('click', () => {
-      state.pedDate = (state.pedDate === d) ? null : d;
+  // Populate date <select> once
+  const sel = document.getElementById('ped-date-select');
+  if (!_pedSelectBuilt) {
+    _pedSelectBuilt = true;
+    for (const d of uniqueDates) {
+      const o = document.createElement('option');
+      o.value = d;
+      o.textContent = fmt.date(d) + '/2026';
+      sel.appendChild(o);
+    }
+    sel.addEventListener('change', () => {
+      state.pedDate = sel.value || null;
       persist();
       renderPedidos();
     });
-    wrap.appendChild(chip);
   }
+  sel.value = state.pedDate || '';
+  sel.classList.toggle('active', !!state.pedDate);
 
   // Mode toggle buttons state
   document.querySelectorAll('.ped-mode-toggle button').forEach(b => {
