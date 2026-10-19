@@ -1,6 +1,7 @@
 <title>Carteira Atakarejo</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
 /* Layout: dense operational dashboard — segmentations strip, 2 pivot tables left/center,
    right sidebar with health KPIs, bar chart by date, and SKU coverage split. */
@@ -129,6 +130,39 @@ body {
   padding: 5px 10px; font: inherit; font-size: 11px; font-weight: 600;
   cursor: pointer;
 }
+.upload-btn {
+  display: inline-flex; align-items: center; gap: 5px;
+  background: var(--mdbred); color: #fff; border: 0;
+  border-radius: 6px; padding: 6px 12px;
+  font: inherit; font-size: 11.5px; font-weight: 700;
+  letter-spacing: .02em; cursor: pointer;
+  transition: filter 150ms;
+}
+.upload-btn:hover { filter: brightness(.92); }
+.upload-btn.loading {
+  opacity: .6; cursor: wait;
+}
+#upload-status {
+  padding: 8px 12px; margin-bottom: 10px;
+  border-radius: 6px; font-size: 12px; font-weight: 500;
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+}
+#upload-status.success {
+  background: var(--good-soft); color: var(--good);
+  border: 1px solid color-mix(in srgb, var(--good) 30%, transparent);
+}
+#upload-status.error {
+  background: var(--bad-soft); color: var(--bad);
+  border: 1px solid color-mix(in srgb, var(--bad) 30%, transparent);
+}
+#upload-status.info {
+  background: var(--chip); color: var(--chip-ink);
+  border: 1px solid color-mix(in srgb, var(--chip-ink) 20%, transparent);
+}
+#upload-status .close {
+  background: transparent; border: 0; color: currentColor;
+  cursor: pointer; font-size: 16px; line-height: 1; padding: 0 4px;
+}
 
 /* ============ FILTERS ============ */
 .filters-wrap {
@@ -245,7 +279,7 @@ body {
 /* ============ LAYOUT GRID ============ */
 .grid {
   display: grid;
-  grid-template-columns: minmax(0, 1.25fr) minmax(0, 1.25fr) minmax(0, 0.95fr);
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1.4fr) minmax(0, 0.7fr);
   gap: 10px;
   margin-bottom: 10px;
 }
@@ -514,9 +548,14 @@ tfoot td.num { text-align: right; font-variant-numeric: tabular-nums; }
       <button type="button" data-unit="cx">CX</button>
       <button type="button" data-unit="kg">KG</button>
     </div>
+    <label for="file-upload" class="upload-btn" title="Enviar nova carteira (.xlsx ou .xlsm)">
+      ⬆ Atualizar dados
+      <input type="file" id="file-upload" accept=".xlsx,.xlsm,.xls" hidden>
+    </label>
     <button type="button" id="theme" class="theme-toggle" aria-label="Alternar tema">◐ Tema</button>
   </div>
 </div>
+<div id="upload-status" hidden></div>
 
 <!-- Filters -->
 <div class="filters-wrap" id="filters">
@@ -1235,16 +1274,26 @@ function renderCoverage(agg, rows) {
 // ============ RENDER PEDIDOS POR DATA ============
 let _pedSelectBuilt = false;
 function renderPedidos() {
-  // Populate date <select> once
+  // Populate date <select>: rebuild each render para refletir novas datas
   const sel = document.getElementById('ped-date-select');
+  sel.innerHTML = '';
+  const optNone = document.createElement('option');
+  optNone.value = '';
+  optNone.textContent = '— Selecione uma data —';
+  sel.appendChild(optNone);
+  const optAll = document.createElement('option');
+  optAll.value = '__ALL__';
+  optAll.textContent = '📅 Todas as datas (período completo)';
+  sel.appendChild(optAll);
+  for (const d of uniqueDates) {
+    const o = document.createElement('option');
+    o.value = d;
+    const yr = d.split('-')[0];
+    o.textContent = fmt.date(d) + '/' + yr.slice(2);
+    sel.appendChild(o);
+  }
   if (!_pedSelectBuilt) {
     _pedSelectBuilt = true;
-    for (const d of uniqueDates) {
-      const o = document.createElement('option');
-      o.value = d;
-      o.textContent = fmt.date(d) + '/2026';
-      sel.appendChild(o);
-    }
     sel.addEventListener('change', () => {
       state.pedDate = sel.value || null;
       persist();
@@ -1271,13 +1320,15 @@ function renderPedidos() {
     return;
   }
 
-  // Aggregate ONLY rows of selected date (respects other filters from the top: sit, uf, loja, sku)
+  // Aggregate rows of selected date OR all dates (respects other filters)
   const f = state.filters;
+  const isAll = state.pedDate === '__ALL__';
   const dateRows = DATA.rows.filter(r => {
-    if (r[col.emis] !== state.pedDate) return false;
+    if (!isAll && r[col.emis] !== state.pedDate) return false;
     if (f.sit.size && !f.sit.has(r[col.sit])) return false;
     if (f.uf.size && !f.uf.has(r[col.uf])) return false;
     if (f.loja.size && !f.loja.has(r[col.cliente])) return false;
+    if (f.op.size && !f.op.has(r[col.op])) return false;
     return true;
   });
 
@@ -1332,11 +1383,13 @@ function renderPedidos() {
   const comPed  = bySku.size;
   const semPed  = totalCad - comPed;
   const uLbl = unitLabel(state.unit);
+  const dateLabel = isAll ? 'Todas as datas' : `${fmt.date(state.pedDate)}/${state.pedDate.split('-')[0].slice(2)}`;
+  const covLabel = isAll ? 'Cobertura do período' : 'Cobertura do dia';
   summary.innerHTML = `
-    <span>Data: <b>${fmt.date(state.pedDate)}/2026</b></span>
+    <span>Data: <b>${dateLabel}</b></span>
     <span><span class="pill good">Com Pedido</span><b>${comPed}</b></span>
     <span><span class="pill bad">Sem Pedido</span><b>${semPed}</b></span>
-    <span>Cobertura do dia: <b>${totalCad ? ((comPed/totalCad)*100).toFixed(1) : '0,0'}%</b></span>
+    <span>${covLabel}: <b>${totalCad ? ((comPed/totalCad)*100).toFixed(1) : '0,0'}%</b></span>
     <span>Qtd Solic (${uLbl}): <b>${fmt.br0.format([...bySku.values()].reduce((a,v)=>a+v.qsol,0))}</b></span>
     <span>Valor Solic: <b>R$ ${fmt.br0.format([...bySku.values()].reduce((a,v)=>a+v.val,0))}</b></span>
   `;
@@ -1458,6 +1511,275 @@ document.querySelectorAll('#tbl-ped thead th').forEach(th => {
     renderPedidos();
   });
 });
+
+// ============ UPLOAD DE EXCEL ============
+function showStatus(msg, kind='info', autoHide=0) {
+  const el = document.getElementById('upload-status');
+  el.className = kind;
+  el.hidden = false;
+  el.innerHTML = `<span>${msg}</span><button type="button" class="close" aria-label="Fechar">×</button>`;
+  el.querySelector('.close').addEventListener('click', () => el.hidden = true);
+  if (autoHide) setTimeout(() => { el.hidden = true; }, autoHide);
+}
+
+function excelDateToISO(v) {
+  // Aceita Date, string ISO, string dd/mm/yyyy, ou serial Excel
+  if (v instanceof Date) {
+    const y = v.getFullYear(), m = String(v.getMonth()+1).padStart(2,'0'), d = String(v.getDate()).padStart(2,'0');
+    return `${y}-${m}-${d}`;
+  }
+  if (typeof v === 'number') {
+    // Serial Excel: dias desde 1899-12-30
+    const ms = (v - 25569) * 86400 * 1000;
+    const dt = new Date(ms);
+    const y = dt.getUTCFullYear(), m = String(dt.getUTCMonth()+1).padStart(2,'0'), d = String(dt.getUTCDate()).padStart(2,'0');
+    return `${y}-${m}-${d}`;
+  }
+  if (typeof v === 'string') {
+    const s = v.trim();
+    if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0,10);
+    const m = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})/);
+    if (m) {
+      let [,d,mo,y] = m;
+      if (y.length === 2) y = '20' + y;
+      return `${y}-${String(mo).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    }
+  }
+  return '';
+}
+function num(v) {
+  if (v == null || v === '') return 0;
+  if (typeof v === 'number') return v;
+  const s = String(v).replace(/\./g, '').replace(',', '.').replace(/[^\d.\-]/g, '');
+  const n = parseFloat(s);
+  return isNaN(n) ? 0 : n;
+}
+
+async function parseWorkbook(file) {
+  const buf = await file.arrayBuffer();
+  const wb = XLSX.read(buf, {cellDates: true});
+  const sheetNames = wb.SheetNames;
+
+  // Encontra as abas (case-insensitive, aproximado)
+  function findSheet(wanted) {
+    const low = wanted.toLowerCase();
+    for (const n of sheetNames) {
+      const nl = n.toLowerCase().replace(/[õóôöâáàäêéèëíìïûúùüç]/g, c => ({õ:'o',ó:'o',ô:'o',ö:'o',â:'a',á:'a',à:'a',ä:'a',ê:'e',é:'e',è:'e',ë:'e',í:'i',ì:'i',ï:'i',û:'u',ú:'u',ù:'u',ü:'u',ç:'c'}[c] || c));
+      if (nl.includes(low)) return n;
+    }
+    return null;
+  }
+
+  const baseName = findSheet('base') || findSheet('informa') || findSheet('carteira') || sheetNames[0];
+  const lojasName = findSheet('loja');
+  const skusName  = findSheet('sku') || findSheet('cadastro') || findSheet('item');
+
+  if (!baseName) throw new Error('Nenhuma aba de dados encontrada');
+
+  // Lê BASE (array de objetos)
+  const baseJson = XLSX.utils.sheet_to_json(wb.Sheets[baseName], {defval: null, raw: true});
+  if (!baseJson.length) throw new Error('A aba de carteira está vazia');
+
+  // Mapeia colunas conhecidas (nomes aproximados)
+  function pickKey(obj, candidates) {
+    const keys = Object.keys(obj);
+    for (const c of candidates) {
+      const clow = c.toLowerCase();
+      const found = keys.find(k => k.toLowerCase().replace(/[õóôöâáàäêéèëíìïûúùüç]/g, ch => ({õ:'o',ó:'o',ô:'o',ö:'o',â:'a',á:'a',à:'a',ä:'a',ê:'e',é:'e',è:'e',ë:'e',í:'i',ì:'i',ï:'i',û:'u',ú:'u',ù:'u',ü:'u',ç:'c'}[ch] || ch)) === clow);
+      if (found) return found;
+    }
+    return null;
+  }
+  const sample = baseJson[0];
+  const K = {
+    sit:     pickKey(sample, ['Sit. Pedido','Situacao','Status']),
+    tipo:    pickKey(sample, ['Tipo']),
+    emis:    pickKey(sample, ['Emissao','Emissão','Data Emissao']),
+    cliente: pickKey(sample, ['Cliente','CNPJ']),
+    uf:      pickKey(sample, ['UF','Estado']),
+    ped:     pickKey(sample, ['Pedido']),
+    sku:     pickKey(sample, ['SKU','Cod MDB','Codigo','Cód MDB']),
+    desc:    pickKey(sample, ['Descricao SKU','Descrição SKU','Descricao','Descrição','Produto']),
+    op:      pickKey(sample, ['Operacao','Operação','Op']),
+    sol_cx:  pickKey(sample, ['Qtd Solic CX/FD','Qtd Solic CX','Qtd Solic']),
+    sol_kg:  pickKey(sample, ['Qtd Solic KG','Qtd Solic Kg']),
+    at_cx:   pickKey(sample, ['Qtd Atend CX/FD','Qtd Atend CX','Qtd Atend']),
+    at_kg:   pickKey(sample, ['Qtd Atend KG','Qtd Atend Kg']),
+    sd_cx:   pickKey(sample, ['Saldo CX/FD','Saldo CX','Qtd Saldo CX']),
+    sd_kg:   pickKey(sample, ['Qtd Saldo Kg','Qtd Saldo KG','Saldo Kg','Saldo KG']),
+    cn_cx:   pickKey(sample, ['Qtd Canc CX/FD','Qtd Canc CX','Qtd Canc']),
+    cn_kg:   pickKey(sample, ['Qtd Canc KG','Qtd Canc Kg']),
+    val_sol: pickKey(sample, ['Valor Solicitado','Vl Solic','Valor Solic']),
+    val_at:  pickKey(sample, ['Valor Atendido','Vl Atend','Valor Atend']),
+    val_cn:  pickKey(sample, ['Valor Cancelado','Vl Canc','Valor Canc']),
+    val_sd:  pickKey(sample, ['Valor Saldo R$','Valor Saldo','Vl Saldo']),
+  };
+
+  const missing = Object.entries(K).filter(([k,v]) => !v).map(([k]) => k);
+  if (missing.length > 15) throw new Error('Formato de carteira não reconhecido. Colunas esperadas não encontradas.');
+
+  const rows = [];
+  for (const o of baseJson) {
+    const cnpj = String(o[K.cliente] ?? '').trim();
+    if (!cnpj) continue;
+    rows.push([
+      cnpj,
+      String(o[K.sit] ?? ''),
+      String(o[K.tipo] ?? ''),
+      excelDateToISO(o[K.emis]),
+      String(o[K.uf] ?? ''),
+      String(o[K.ped] ?? ''),
+      parseInt(o[K.sku]) || 0,
+      String(o[K.desc] ?? ''),
+      String(o[K.op] ?? ''),
+      num(o[K.sol_cx]), num(o[K.sol_kg]),
+      num(o[K.at_cx]),  num(o[K.at_kg]),
+      num(o[K.sd_cx]),  num(o[K.sd_kg]),
+      num(o[K.cn_cx]),  num(o[K.cn_kg]),
+      num(o[K.val_sol]), num(o[K.val_at]), num(o[K.val_cn]), num(o[K.val_sd]),
+    ]);
+  }
+
+  // LOJAS
+  let lojas = DATA.lojas;
+  if (lojasName) {
+    const lj = XLSX.utils.sheet_to_json(wb.Sheets[lojasName], {defval: null});
+    if (lj.length) {
+      const sampleL = lj[0];
+      const KL = {
+        nome: pickKey(sampleL, ['NOME DA LOJA','Nome da Loja','Nome','Loja']),
+        cnpj: pickKey(sampleL, ['CNPJ']),
+        uf:   pickKey(sampleL, ['UF','Estado']),
+        cid:  pickKey(sampleL, ['Cidade']),
+      };
+      if (KL.cnpj) {
+        lojas = {};
+        for (const o of lj) {
+          const c = String(o[KL.cnpj] ?? '').trim();
+          if (!c) continue;
+          lojas[c] = {
+            nome: String(o[KL.nome] ?? c),
+            uf:   String(o[KL.uf] ?? ''),
+            cidade: String(o[KL.cid] ?? ''),
+          };
+        }
+      }
+    }
+  }
+
+  // SKUs cadastrados
+  let skusCad = DATA.skus_cadastro;
+  if (skusName) {
+    const sk = XLSX.utils.sheet_to_json(wb.Sheets[skusName], {defval: null});
+    if (sk.length) {
+      const sampleS = sk[0];
+      const KS = {
+        cod:  pickKey(sampleS, ['Cód MDB','Cod MDB','SKU','Codigo','Código']),
+        desc: pickKey(sampleS, ['Descrição Produto','Descricao Produto','Descrição','Descricao','Produto']),
+      };
+      if (KS.cod) {
+        skusCad = {};
+        for (const o of sk) {
+          const c = parseInt(o[KS.cod]);
+          if (!c) continue;
+          skusCad[c] = String(o[KS.desc] ?? '').trim();
+        }
+      }
+    }
+  }
+
+  const emisList = rows.map(r => r[3]).filter(Boolean).sort();
+  return {
+    generated: new Date().toISOString(),
+    periodo: { inicio: emisList[0] || '', fim: emisList[emisList.length-1] || '' },
+    cols: DATA.cols,
+    lojas, skus_cadastro: skusCad,
+    rows,
+  };
+}
+
+async function handleFileUpload(file) {
+  const btn = document.querySelector('.upload-btn');
+  btn.classList.add('loading');
+  showStatus('Lendo arquivo…', 'info');
+  try {
+    if (typeof XLSX === 'undefined') throw new Error('Biblioteca de Excel ainda carregando. Aguarde um momento e tente de novo.');
+    const parsed = await parseWorkbook(file);
+    if (!parsed.rows.length) throw new Error('Nenhuma linha de pedido encontrada no arquivo.');
+
+    // Substitui DATA no runtime
+    Object.assign(DATA, parsed);
+
+    // Recompute unique values (datas, status, UFs, ops, lojas)
+    recomputeUniques();
+
+    // Persiste no localStorage (pode exceder o limite — try/catch)
+    try {
+      localStorage.setItem('atak-dash-data', JSON.stringify(parsed));
+      localStorage.setItem('atak-dash-data-time', new Date().toISOString());
+    } catch(e) {
+      console.warn('Não deu para salvar os dados no navegador:', e);
+    }
+
+    // Reset filtros que podem não ter mais sentido
+    for (const k of Object.keys(state.filters)) state.filters[k].clear();
+    state.pedDate = null;
+    persist();
+
+    _ddBuilt = false; // força rebuild dos dropdowns
+    document.getElementById('dd-row').innerHTML = '';
+    _pedSelectBuilt = false;
+    render();
+
+    showStatus(`✓ Carteira atualizada: ${parsed.rows.length.toLocaleString('pt-BR')} pedidos · período ${fmt.date(parsed.periodo.inicio)} a ${fmt.date(parsed.periodo.fim)}`, 'success', 6000);
+  } catch(e) {
+    console.error(e);
+    showStatus(`✗ Erro ao ler o arquivo: ${e.message}`, 'error');
+  } finally {
+    btn.classList.remove('loading');
+  }
+}
+
+function recomputeUniques() {
+  // Rebuild uniques arrays based on new DATA.rows
+  uniqueDates.length = 0;
+  [...new Set(DATA.rows.map(r => r[col.emis]))].sort().forEach(x => uniqueDates.push(x));
+  uniqueSits.length = 0;
+  [...new Set(DATA.rows.map(r => r[col.sit]))].sort().forEach(x => uniqueSits.push(x));
+  uniqueUFs.length = 0;
+  [...new Set(DATA.rows.map(r => r[col.uf]))].sort().forEach(x => uniqueUFs.push(x));
+  uniqueOps.length = 0;
+  [...new Set(DATA.rows.map(r => r[col.op]))].sort().forEach(x => uniqueOps.push(x));
+  uniqueLojas.length = 0;
+  [...new Set(DATA.rows.map(r => r[col.cliente]))].sort((a,b) => {
+    const na = (DATA.lojas[a]?.nome || a);
+    const nb = (DATA.lojas[b]?.nome || b);
+    return na.localeCompare(nb);
+  }).forEach(x => uniqueLojas.push(x));
+}
+
+document.getElementById('file-upload').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (file) handleFileUpload(file);
+  e.target.value = ''; // permite re-selecionar o mesmo arquivo
+});
+
+// Carregar dados do localStorage ao iniciar
+try {
+  const savedData = localStorage.getItem('atak-dash-data');
+  if (savedData) {
+    const parsed = JSON.parse(savedData);
+    if (parsed.rows && parsed.rows.length) {
+      Object.assign(DATA, parsed);
+      recomputeUniques();
+      const when = localStorage.getItem('atak-dash-data-time');
+      if (when) {
+        const d = new Date(when);
+        setTimeout(() => showStatus(`Dados atualizados em ${d.toLocaleDateString('pt-BR')} às ${d.toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'})} (${parsed.rows.length.toLocaleString('pt-BR')} pedidos neste navegador)`, 'info', 5000), 100);
+      }
+    }
+  }
+} catch(_){}
 
 // Set generated date in footer
 document.querySelector('.foot').innerHTML = document.querySelector('.foot').innerHTML
