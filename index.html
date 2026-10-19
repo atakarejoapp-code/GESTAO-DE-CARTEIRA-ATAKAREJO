@@ -1006,7 +1006,7 @@ function buildDropdowns() {
     {key:'uf',   label:'UF', items: uniqueUFs.map(u => ({v:u, label:u, n:ufCount.get(u)}))},
     {key:'op',   label:'Operação', items: uniqueOps.map(o => ({v:o, label: opLabels[o] || o, n:opCount.get(o)}))},
     {key:'loja', label:'Loja', items: uniqueLojas.map(c => ({v:c, label:(DATA.lojas[c]?.nome || c), n:lojaCount.get(c) || 0})), search:true},
-  ];
+  ].filter(def => def.items.length > 0);  // Esconde dropdowns sem opções
 
   for (const def of defs) {
     const dd = document.createElement('div');
@@ -1813,13 +1813,19 @@ async function parseWorkbook(file) {
   const baseJson = XLSX.utils.sheet_to_json(wb.Sheets[baseName], {defval: null, raw: true});
   if (!baseJson.length) throw new Error('A aba de carteira está vazia');
 
-  // Mapeia colunas conhecidas (nomes aproximados)
+  // Mapeia colunas conhecidas (nomes aproximados) — normalização robusta
   function pickKey(obj, candidates) {
+    const norm = s => String(s).toLowerCase()
+      .normalize('NFD').replace(/[̀-ͯ]/g, '')  // remove acentos
+      .replace(/[._\s\-\/]/g, '');                        // remove separadores
     const keys = Object.keys(obj);
+    const normKeys = keys.map(k => [k, norm(k)]);
     for (const c of candidates) {
-      const clow = c.toLowerCase();
-      const found = keys.find(k => k.toLowerCase().replace(/[õóôöâáàäêéèëíìïûúùüç]/g, ch => ({õ:'o',ó:'o',ô:'o',ö:'o',â:'a',á:'a',à:'a',ä:'a',ê:'e',é:'e',è:'e',ë:'e',í:'i',ì:'i',ï:'i',û:'u',ú:'u',ù:'u',ü:'u',ç:'c'}[ch] || ch)) === clow);
-      if (found) return found;
+      const nc = norm(c);
+      // Match exato primeiro
+      let found = normKeys.find(([_, nk]) => nk === nc);
+      if (!found) found = normKeys.find(([_, nk]) => nk.includes(nc) || nc.includes(nk));
+      if (found) return found[0];
     }
     return null;
   }
@@ -1833,7 +1839,7 @@ async function parseWorkbook(file) {
     ped:     pickKey(sample, ['Pedido']),
     sku:     pickKey(sample, ['SKU','Cod MDB','Codigo','Cód MDB']),
     desc:    pickKey(sample, ['Descricao SKU','Descrição SKU','Descricao','Descrição','Produto']),
-    op:      pickKey(sample, ['Operacao','Operação','Op']),
+    op:      pickKey(sample, ['Operacao','Operação','Op','Tp Op','Tipo Op','Tipo Operacao','Tipo de Operacao','Ordem','Tipo Pedido']),
     sol_cx:  pickKey(sample, ['Qtd Solic CX/FD','Qtd Solic CX','Qtd Solic']),
     sol_kg:  pickKey(sample, ['Qtd Solic KG','Qtd Solic Kg']),
     at_cx:   pickKey(sample, ['Qtd Atend CX/FD','Qtd Atend CX','Qtd Atend']),
@@ -1850,6 +1856,10 @@ async function parseWorkbook(file) {
 
   const missing = Object.entries(K).filter(([k,v]) => !v).map(([k]) => k);
   if (missing.length > 15) throw new Error('Formato de carteira não reconhecido. Colunas esperadas não encontradas.');
+
+  // Guardar lista de colunas faltantes importantes para exibir aviso
+  const importantMissing = ['op', 'sit', 'uf', 'cliente', 'sku', 'emis'].filter(k => missing.includes(k));
+  const availableCols = Object.keys(sample).join(', ');
 
   const rows = [];
   for (const o of baseJson) {
@@ -1928,6 +1938,10 @@ async function parseWorkbook(file) {
     cols: DATA.cols,
     lojas, skus_cadastro: skusCad,
     rows,
+    _warn: {
+      missing: importantMissing,
+      availableCols,
+    },
   };
 }
 
@@ -1964,7 +1978,15 @@ async function handleFileUpload(file) {
     _pedSelectBuilt = false;
     render();
 
-    showStatus(`✓ Carteira atualizada: ${parsed.rows.length.toLocaleString('pt-BR')} pedidos · período ${fmt.date(parsed.periodo.inicio)} a ${fmt.date(parsed.periodo.fim)}`, 'success', 6000);
+    let msg = `✓ Carteira atualizada: ${parsed.rows.length.toLocaleString('pt-BR')} pedidos · período ${fmt.date(parsed.periodo.inicio)} a ${fmt.date(parsed.periodo.fim)}`;
+    if (parsed._warn && parsed._warn.missing && parsed._warn.missing.length) {
+      const nameMap = {op:'Operação', sit:'Status', uf:'UF', cliente:'Cliente/CNPJ', sku:'SKU', emis:'Emissão'};
+      const names = parsed._warn.missing.map(k => nameMap[k] || k).join(', ');
+      msg += `  ⚠ Colunas não reconhecidas: ${names}. Essas colunas vão aparecer vazias nos filtros. Cabeçalhos encontrados: ${parsed._warn.availableCols}`;
+      showStatus(msg, 'error');
+    } else {
+      showStatus(msg, 'success', 6000);
+    }
   } catch(e) {
     console.error(e);
     showStatus(`✗ Erro ao ler o arquivo: ${e.message}`, 'error');
@@ -1974,17 +1996,18 @@ async function handleFileUpload(file) {
 }
 
 function recomputeUniques() {
-  // Rebuild uniques arrays based on new DATA.rows
+  // Rebuild uniques arrays based on new DATA.rows (ignora valores vazios)
+  const nonEmpty = v => v !== '' && v !== null && v !== undefined;
   uniqueDates.length = 0;
-  [...new Set(DATA.rows.map(r => r[col.emis]))].sort().forEach(x => uniqueDates.push(x));
+  [...new Set(DATA.rows.map(r => r[col.emis]))].filter(nonEmpty).sort().forEach(x => uniqueDates.push(x));
   uniqueSits.length = 0;
-  [...new Set(DATA.rows.map(r => r[col.sit]))].sort().forEach(x => uniqueSits.push(x));
+  [...new Set(DATA.rows.map(r => r[col.sit]))].filter(nonEmpty).sort().forEach(x => uniqueSits.push(x));
   uniqueUFs.length = 0;
-  [...new Set(DATA.rows.map(r => r[col.uf]))].sort().forEach(x => uniqueUFs.push(x));
+  [...new Set(DATA.rows.map(r => r[col.uf]))].filter(nonEmpty).sort().forEach(x => uniqueUFs.push(x));
   uniqueOps.length = 0;
-  [...new Set(DATA.rows.map(r => r[col.op]))].sort().forEach(x => uniqueOps.push(x));
+  [...new Set(DATA.rows.map(r => r[col.op]))].filter(nonEmpty).sort().forEach(x => uniqueOps.push(x));
   uniqueLojas.length = 0;
-  [...new Set(DATA.rows.map(r => r[col.cliente]))].sort((a,b) => {
+  [...new Set(DATA.rows.map(r => r[col.cliente]))].filter(nonEmpty).sort((a,b) => {
     const na = (DATA.lojas[a]?.nome || a);
     const nb = (DATA.lojas[b]?.nome || b);
     return na.localeCompare(nb);
