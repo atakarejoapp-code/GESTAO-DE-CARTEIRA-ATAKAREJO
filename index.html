@@ -1349,9 +1349,10 @@ function computeAvailable(excludeKey) {
 }
 
 function updateDropdowns() {
-  for (const dd of document.querySelectorAll('.dd')) {
+  for (const dd of document.querySelectorAll('.dd[data-key]')) {
     const key = dd.dataset.key;
     const s = state.filters[key];
+    if (!s) continue;  // safety: ignora dropdowns de outras views
     const btn = dd.querySelector('.dd-btn');
     const valEl = btn.querySelector('.val');
     if (s.size === 0) {
