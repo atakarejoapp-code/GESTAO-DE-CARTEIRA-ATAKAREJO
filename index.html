@@ -2382,7 +2382,8 @@ function switchView(v) {
     sub.textContent = `${estUniqueDatas.length} semanas · última: ${atual ? fmt.date(atual)+'/'+atual.slice(2,4) : '—'}`;
     estRender();
   } else {
-    render();
+    title.textContent = 'Carteira de Pedidos — Atakarejo';
+    render();  // render já atualiza o sub
   }
   persist();
 }
