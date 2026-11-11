@@ -419,6 +419,17 @@ body:not([data-page="estoque"]) .only-estoque { display: none !important; }
   border-radius: 8px; padding: 10px 12px;
   margin-bottom: 10px;
 }
+.kpi-box-title { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.export-btn {
+  margin-left: auto;
+  background: var(--card); color: var(--accent);
+  border: 1px solid var(--accent); border-radius: 5px;
+  padding: 4px 10px; font: inherit; font-size: 11px; font-weight: 700;
+  letter-spacing: .02em; cursor: pointer;
+  transition: background 120ms;
+}
+.export-btn:hover { background: color-mix(in srgb, var(--accent) 10%, var(--card)); }
+.export-btn:active { transform: translateY(1px); }
 .kpi-box {
   background: var(--card); border: 1px solid var(--rule);
   border-radius: 8px; padding: 10px 12px;
@@ -828,7 +839,12 @@ tfoot td.num { text-align: right; font-variant-numeric: tabular-nums; }
 
 <!-- Cobertura: Solic x Itens Cadastrados -->
 <div class="cover-strip">
-  <div class="kpi-box-title">Solic × Itens Cadastrados <span class="hint">universo filtrado</span></div>
+  <div class="kpi-box-title">
+    Solic × Itens Cadastrados <span class="hint">universo filtrado</span>
+    <button type="button" class="export-btn" id="export-sem-pedido" title="Baixar lista dos SKUs sem pedido como Excel">
+      ⬇ Exportar SKUs sem pedido
+    </button>
+  </div>
   <div class="kpi-row-h kpi-row-cobertura">
     <div class="kpi-h"><div class="lbl">Cadastrados</div><div class="val" id="cov-tot">—</div></div>
     <div class="kpi-h good"><div class="lbl">Com Pedido</div><div class="val" id="cov-com">—</div></div>
@@ -2791,6 +2807,78 @@ document.getElementById('file-upload').addEventListener('change', (e) => {
   const file = e.target.files[0];
   if (file) handleFileUpload(file);
   e.target.value = ''; // permite re-selecionar o mesmo arquivo
+});
+
+// ============ EXPORT: SKUs SEM PEDIDO ============
+document.getElementById('export-sem-pedido').addEventListener('click', () => {
+  if (typeof XLSX === 'undefined') {
+    showStatus('Biblioteca Excel ainda carregando. Aguarde e tente de novo.', 'error', 4000);
+    return;
+  }
+  // Pega os SKUs sem pedido NO CONTEXTO DOS FILTROS atuais
+  const rows = filteredRows();
+  const bySku = new Map();
+  for (const r of rows) {
+    const sku = r[col.sku];
+    if (!bySku.has(sku)) bySku.set(sku, true);
+  }
+  const semPedido = [];
+  for (const [skuStr, desc] of Object.entries(DATA.skus_cadastro)) {
+    const sku = Number(skuStr);
+    if (bySku.has(sku)) continue;
+    semPedido.push({ sku, desc });
+  }
+  if (!semPedido.length) {
+    showStatus('Nenhum SKU sem pedido no recorte atual.', 'info', 4000);
+    return;
+  }
+
+  // Resumo dos filtros aplicados (para que o leitor saiba o que está vendo)
+  const resumo = [];
+  const f = state.filters;
+  if (f.emis.size) resumo.push(`Data: ${[...f.emis].map(fmt.date).join(', ')}`);
+  if (f.sit.size)  resumo.push(`Status: ${[...f.sit].join(', ')}`);
+  if (f.uf.size)   resumo.push(`UF: ${[...f.uf].join(', ')}`);
+  if (f.op.size)   resumo.push(`Operação: ${[...f.op].join(', ')}`);
+  if (f.loja.size) resumo.push(`Loja: ${[...f.loja].map(c => DATA.lojas[c]?.nome || c).join(', ')}`);
+  if (f.sku.size)  resumo.push(`SKU: ${[...f.sku].join(', ')}`);
+  if (state.onlySaldo) resumo.push('Só com saldo: SIM');
+  const contexto = resumo.length ? resumo.join(' · ') : 'Sem filtros (toda a base)';
+
+  // Ordena por código
+  semPedido.sort((a, b) => a.sku - b.sku);
+
+  // Monta planilha
+  const aoa = [
+    [`SKUs SEM PEDIDO — ${new Date().toLocaleDateString('pt-BR')}`],
+    [`Contexto: ${contexto}`],
+    [`Total: ${semPedido.length} SKUs sem pedido de ${Object.keys(DATA.skus_cadastro).length} cadastrados`],
+    [],
+    ['Cód MDB', 'Descrição Produto', 'Status'],
+  ];
+  for (const x of semPedido) aoa.push([x.sku, x.desc, 'SEM PEDIDO']);
+
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+  // Larguras das colunas
+  ws['!cols'] = [{ wch: 12 }, { wch: 42 }, { wch: 14 }];
+  // Mescla o título
+  ws['!merges'] = [
+    { s: {r:0, c:0}, e: {r:0, c:2} },
+    { s: {r:1, c:0}, e: {r:1, c:2} },
+    { s: {r:2, c:0}, e: {r:2, c:2} },
+  ];
+  XLSX.utils.book_append_sheet(wb, ws, 'SKUs sem pedido');
+
+  // Nome do arquivo com data
+  const d = new Date();
+  const fname = `SKUs_sem_pedido_${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}.xlsx`;
+  try {
+    XLSX.writeFile(wb, fname);
+    showStatus(`✓ Exportados ${semPedido.length} SKUs sem pedido em ${fname}`, 'success', 5000);
+  } catch (e) {
+    showStatus('Erro ao gerar arquivo: ' + e.message, 'error', 6000);
+  }
 });
 document.getElementById('file-upload-est').addEventListener('change', (e) => {
   const file = e.target.files[0];
